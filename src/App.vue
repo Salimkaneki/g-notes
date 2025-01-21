@@ -1,64 +1,124 @@
+// App.vue
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col items-center py-10">
-    <h1 class="text-3xl font-bold text-blue-600 mb-6">Gestion de Notes</h1>
-    <div class="flex items-center w-full max-w-md">
-      <input 
-        v-model="newNote" 
-        @keyup.enter="addNote" 
-        placeholder="Écrire une nouvelle note"
-        class="flex-grow border rounded-lg p-2 text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mr-2"
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- En-tête de l'application -->
+    <header class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold text-indigo-700">
+          Mes Notes
+        </h1>
+      </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-8">
+      <!-- Formulaire d'ajout de note -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex items-center space-x-3">
+          <input 
+            v-model="newNote" 
+            @keyup.enter="addNote" 
+            placeholder="Écrire une nouvelle note..."
+            class="flex-grow px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 
+                   text-gray-700 placeholder-gray-400 transition
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <button 
+            @click="addNote" 
+            :disabled="!newNote.trim()"
+            class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg
+                   transform transition hover:scale-105 hover:bg-indigo-700
+                   active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                   disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Ajouter
+          </button>
+        </div>
+      </div>
+
+      <!-- Liste des notes -->
+      <NoteList 
+        :notes="notes"
+        @delete="deleteNote"
+        @edit="editNote"
+        @select="handleNoteSelect"
       />
-      <button 
-        @click="addNote" 
-        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-      >
-        Ajouter
-      </button>
-    </div>
-    <NoteList 
-      :notes="notes" 
-      @delete="deleteNote" 
-      @edit="editNote"
-      class="mt-6 w-full max-w-md"
-    />
+    </main>
   </div>
 </template>
 
 <script>
-import NoteList from "./components/NoteList.vue";
+import { ref, onMounted, watch } from 'vue';
+import NoteList from './components/NoteList.vue';
 
 export default {
-  name: "App",
+  name: 'App',
   components: { NoteList },
-  data() {
-    return {
-      newNote: "",
-      notes: JSON.parse(localStorage.getItem("notes")) || [],
+
+  setup() {
+    const notes = ref([]);
+    const newNote = ref('');
+    const selectedNoteId = ref(null);
+
+    // Chargement initial des notes
+    onMounted(() => {
+      const savedNotes = localStorage.getItem('notes');
+      if (savedNotes) {
+        notes.value = JSON.parse(savedNotes);
+      }
+    });
+
+    // Sauvegarde automatique des notes
+    watch(notes, (newNotes) => {
+      localStorage.setItem('notes', JSON.stringify(newNotes));
+    }, { deep: true });
+
+    // Méthodes
+    const addNote = () => {
+      if (newNote.value.trim()) {
+        const note = {
+          id: Date.now(),
+          content: newNote.value.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        notes.value.unshift(note);
+        newNote.value = '';
+      }
     };
-  },
-  methods: {
-    addNote() {
-      if (this.newNote.trim()) {
-        const newNoteObj = { id: Date.now(), content: this.newNote.trim() };
-        this.notes.push(newNoteObj);
-        this.newNote = "";
-        this.saveNotes();
+
+    const deleteNote = (noteId) => {
+      notes.value = notes.value.filter(note => note.id !== noteId);
+      if (selectedNoteId.value === noteId) {
+        selectedNoteId.value = null;
       }
-    },
-    deleteNote(id) {
-      this.notes = this.notes.filter((note) => note.id !== id);
-      this.saveNotes();
-    },
-    editNote(id, updatedContent) {
-      const note = this.notes.find((note) => note.id === id);
+    };
+
+    const editNote = (noteId, newContent) => {
+      const note = notes.value.find(n => n.id === noteId);
       if (note) {
-        note.content = updatedContent;
-        this.saveNotes();
+        note.content = newContent;
+        note.updatedAt = new Date().toISOString();
       }
-    },
-    saveNotes() {
-      localStorage.setItem("notes", JSON.stringify(this.notes));
-    },
-  },
+    };
+
+    const handleNoteSelect = (noteId) => {
+      selectedNoteId.value = noteId;
+    };
+
+    return {
+      notes,
+      newNote,
+      selectedNoteId,
+      addNote,
+      deleteNote,
+      editNote,
+      handleNoteSelect
+    };
+  }
 };
 </script>
+
+<style>
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+</style>
